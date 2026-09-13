@@ -1,0 +1,126 @@
+name: Release
+
+# Publication is driven by a tag. `workflow_dispatch` exists so the whole path —
+# build, tag check, five-platform verification — can be exercised without
+# minting a tag; only a tag reaches the `github-release` job.
+on:
+  push:
+    tags: ["v[0-9]*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel a publication in flight. A toolchain release is immutable and
+# consumers pin it by digest, so a half-uploaded set of assets is worse than a
+# queued one.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      # The tag is a promise about what is inside the archives: every archive
+      # embeds the toolchain version in its filename and in its manifest.json.
+      # Checking here turns a mistyped tag into a red build, instead of a
+      # release whose assets disagree with the tag that published them — and a
+      # published toolchain release is immutable, so there is no fixing it after.
+      - name: Check the tag matches toolchain.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tagged="${GITHUB_REF_NAME#v}"
+          declared=$(node -p "require('./toolchain.json').toolchain")
+          echo "tag=$tagged declared=$declared"
+          if [ "$tagged" != "$declared" ]; then
+            echo "::error::tag v$tagged does not match toolchain.json $declared" >&2
+            exit 1
+          fi
+
+      - name: Build
+        run: node scripts/build-release.mjs
+
+      - name: Rebuild and compare
+        run: |
+          node scripts/build-release.mjs --out work/repro
+          diff dist/SHA256SUMS work/repro/SHA256SUMS
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # The same matrix CI runs, for the same reason: these exact bytes are what the
+  # release job uploads, so each one is proven to run on the platform it claims
+  # before anybody can download it.
+  verify:
+    name: verify (${{ matrix.platform }})
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-latest
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+          - platform: macos-x86_64
+            runner: macos-15-intel
+          - platform: macos-arm64
+            runner: macos-latest
+          - platform: windows-x86_64
+            runner: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist
+          path: dist/
+
+      - name: Verify
+        run: node scripts/verify-release.mjs
+
+  github-release:
+    name: github release
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # The one job that writes to the repository, and it writes only the release.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist
+          path: dist/
+
+      # Notes come from the changelog rather than from generated commit titles:
+      # the changelog is the edited account, and the commit log is the raw one.
+      - name: Cut the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          node scripts/release-notes.mjs "$version" > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md for what changed." > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "hypermarkdown-toolchain $version" \
+            --notes-file notes.md

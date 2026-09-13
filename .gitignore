@@ -1,0 +1,6 @@
+# Build output. Releases are the published artifacts, not files in the tree —
+# every archive here is reproducible from toolchain.json by one command.
+/dist/
+
+# Downloaded upstream assets and scratch build directories.
+/work/

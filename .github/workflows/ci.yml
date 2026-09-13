@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Build once, on one runner, and hand the same bytes to every verifier. If
+  # each platform built its own archive, a verify job could only ever prove that
+  # the archive that runner built is good — not that the archive users download
+  # is. The artifact is the thing under test.
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Build
+        run: node scripts/build-release.mjs
+
+      # Reproducibility is a promise the README makes, so CI has to hold it to
+      # that. A second build from the same toolchain.json must produce the same
+      # digests; anything that leaked in — a timestamp, an ordering, a mode —
+      # shows up here as a diff rather than months later as two "identical"
+      # releases that are not.
+      - name: Rebuild and compare
+        run: |
+          node scripts/build-release.mjs --out work/repro
+          diff dist/SHA256SUMS work/repro/SHA256SUMS
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # One runner per published platform. The point of the matrix is the host-only
+  # half of verify-release.mjs: on its own platform it extracts d2 and renders a
+  # diagram through it, which is the only check that proves the archive contains
+  # a working binary and not merely the right-looking bytes.
+  verify:
+    name: verify (${{ matrix.platform }})
+    needs: build
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-latest
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+          - platform: macos-x86_64
+            # GitHub's x86_64 macOS label. The `macos-13` runners that used to
+            # serve this architecture are retired; `macos-latest` is arm64.
+            runner: macos-15-intel
+          - platform: macos-arm64
+            runner: macos-latest
+          - platform: windows-x86_64
+            runner: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist
+          path: dist/
+
+      # Upload/download does not preserve the executable bit, and the archives
+      # carry their own modes inside, so nothing needs restoring here — the
+      # verifier reads the mode from the archive entry, not from disk.
+      - name: Verify
+        run: node scripts/verify-release.mjs
