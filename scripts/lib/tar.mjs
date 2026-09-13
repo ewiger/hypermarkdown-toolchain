@@ -137,5 +137,15 @@ export function writeTarGz(files) {
 
   // level 9 for stability across zlib builds at the same level; mtime 0 keeps
   // the gzip header free of a build timestamp.
-  return gzipSync(Buffer.concat(chunks), { level: 9, mtime: 0 });
+  const gz = gzipSync(Buffer.concat(chunks), { level: 9, mtime: 0 });
+
+  // Byte 9 of the gzip header is the OS the stream was produced on, and zlib
+  // fills it in from the build it is running in: 0x03 on Linux, 0x13 on Darwin.
+  // Nothing reads it, but it is a byte, and a byte is the difference between
+  // "reproducible" and "reproducible if you build on the same kind of machine".
+  // v0.1.0 shipped with the Linux value from CI and a macOS build of the same
+  // `toolchain.json` produced five different digests; pinning it to 0xff,
+  // "unknown", makes the output a function of the inputs alone.
+  gz[9] = 0xff;
+  return gz;
 }

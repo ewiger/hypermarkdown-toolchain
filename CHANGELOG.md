@@ -3,6 +3,23 @@
 Toolchain versions are independent of HyperMarkDown's. A published release is
 immutable.
 
+## [Unreleased]
+
+### Fixed
+
+- **The archives are now byte-identical across build hosts, not only across
+  builds on one host.** Byte 9 of a gzip header names the OS zlib was built
+  for — `0x03` on Linux, `0x13` on Darwin — so building 0.1.0 on macOS produced
+  five different digests than the Linux build CI published, while both passed
+  the rebuild-and-compare check because each compared against itself. The byte
+  is now pinned to `0xff`, "unknown", which makes the output a function of
+  `toolchain.json` alone. Nothing reads the byte; the claim in the README is
+  what was wrong, and it is now true.
+
+  The published 0.1.0 archives are unaffected and stay valid — a release is
+  immutable, and their contents were never in question: the inner tar was
+  already identical, and consumers pin the published digests.
+
 ## [0.1.0] — 2026-09-14
 
 First release.

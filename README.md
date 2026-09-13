@@ -37,8 +37,10 @@ manifest.json          # toolchain version, platform, d2 version and upstream pi
 
 `manifest.json` describes the inputs rather than the build — no timestamp, no
 builder identity — which is what makes the archives byte-reproducible. Building
-the same `toolchain.json` twice produces an identical `SHA256SUMS`, and CI checks
-that on every push.
+the same `toolchain.json` produces an identical `SHA256SUMS`, on any host: entry
+mtimes, uids and modes are fixed, the gzip header carries no filename or
+timestamp, and its OS byte is pinned rather than taken from the zlib the builder
+happens to have. CI rebuilds and compares on every push.
 
 ## Consuming a release
 
