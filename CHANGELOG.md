@@ -5,6 +5,8 @@ immutable.
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-09-14
+
 ### Fixed
 
 - **The archives are now byte-identical across build hosts, not only across
