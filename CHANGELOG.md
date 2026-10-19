@@ -5,6 +5,20 @@ immutable.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-19
+
+### Added
+
+- **`hql` 0.4.2** (`ewiger/hql` `v0.4.2`), at `bin/hql` with its MIT licence at
+  `licenses/hql/LICENSE`, in the linux-x86_64, macos-x86_64 and macos-arm64
+  archives — the targets HQL publishes. The linux-arm64 and windows-x86_64
+  archives carry `d2` only. `manifest.json` lists the tools an archive holds,
+  each with its licence. Its digests are checked against the `.sha256` file HQL
+  publishes beside each asset, as d2's are against its `SHA256SUMS`.
+- Verification runs every binary on its own platform: `hql` runs a cell through
+  `hql render --emit after --envelope json -`, the invocation the VS Code
+  extension uses.
+
 ## [0.1.1] — 2026-09-14
 
 ### Fixed

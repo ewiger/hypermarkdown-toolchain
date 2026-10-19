@@ -48,9 +48,10 @@ jobs:
           if-no-files-found: error
 
   # One runner per published platform. The point of the matrix is the host-only
-  # half of verify-release.mjs: on its own platform it extracts d2 and renders a
-  # diagram through it, which is the only check that proves the archive contains
-  # a working binary and not merely the right-looking bytes.
+  # half of verify-release.mjs: on its own platform it extracts every binary and
+  # runs it — d2 renders a diagram, hql runs a cell — which is the only check that
+  # proves the archive contains working binaries and not merely the right-looking
+  # bytes.
   verify:
     name: verify (${{ matrix.platform }})
     needs: build
