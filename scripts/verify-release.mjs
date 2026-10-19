@@ -4,9 +4,10 @@
 //   node scripts/verify-release.mjs [--out dist]
 //
 // Checks every archive in the output directory: its digest matches SHA256SUMS,
-// it contains exactly the three files the layout promises, its embedded
-// manifest agrees with toolchain.json, and — for the archive matching the host
-// — the extracted d2 actually runs and renders. Both workflows call this, so
+// it contains exactly the files the layout promises for its platform, its
+// embedded manifest agrees with toolchain.json, and — for the archive matching
+// the host — every extracted binary actually runs: d2 renders, and hql runs a
+// cell. Both workflows call this, so
 // there is one definition of "a good release" rather than a copy in each.
 
 import { execFileSync } from "node:child_process";
@@ -18,6 +19,7 @@ import { join } from "node:path";
 import { ROOT, fail, parseSums, readManifest, sha256 } from "./lib/common.mjs";
 import { readTarGz } from "./lib/tar.mjs";
 import { readZip } from "./lib/zip.mjs";
+import { binaryPath, expectedFiles, toolsFor } from "./lib/tools.mjs";
 
 const problems = [];
 
@@ -31,29 +33,57 @@ function hostPlatform() {
   return os && arch ? `${os}-${arch}` : null;
 }
 
-/** Run the extracted binary the way its consumers do, and confirm what it is. */
-function exerciseBinary(entry, expectedVersion) {
+/** Write an extracted binary somewhere it can run. */
+function extract(entry, tool) {
   const dir = mkdtempSync(join(tmpdir(), "hmd-toolchain-"));
   // The extension matters on Windows: CreateProcess will not execute a file
   // without one, so a binary written as plain `d2` fails here with ENOENT and
   // reads as a missing file rather than as the naming mistake it is.
-  const binary = join(dir, process.platform === "win32" ? "d2.exe" : "d2");
+  const binary = join(dir, process.platform === "win32" ? `${tool}.exe` : tool);
   writeFileSync(binary, entry.body);
   chmodSync(binary, 0o755);
-
-  const version = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
-  check(
-    version.includes(expectedVersion),
-    `d2 --version reported ${JSON.stringify(version)}, expected it to contain ${expectedVersion}`,
-  );
-
-  // `d2 - -` (stdin to stdout) is the exact invocation both the mkdocs plugin
-  // and the VS Code extension use, so it is the one worth proving.
-  const svg = execFileSync(binary, ["-", "-"], { input: "a -> b\n", encoding: "utf8", timeout: 30_000 });
-  check(svg.includes("<svg"), "rendering `a -> b` through `d2 - -` produced no SVG");
-
-  return version;
+  return { binary, dir };
 }
+
+/**
+ * Run each extracted binary the way its consumers do, and confirm what it is.
+ * The invocations are the ones the mkdocs plugin and the VS Code extension
+ * make, because those are the ones worth proving.
+ */
+const EXERCISE = {
+  d2(binary, expectedVersion) {
+    const version = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
+    check(
+      version.includes(expectedVersion),
+      `d2 --version reported ${JSON.stringify(version)}, expected it to contain ${expectedVersion}`,
+    );
+    // `d2 - -`, stdin to stdout.
+    const svg = execFileSync(binary, ["-", "-"], { input: "a -> b\n", encoding: "utf8", timeout: 30_000 });
+    check(svg.includes("<svg"), "rendering `a -> b` through `d2 - -` produced no SVG");
+    return version;
+  },
+  hql(binary, expectedVersion, dir) {
+    const version = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
+    check(
+      version.includes(expectedVersion),
+      `hql --version reported ${JSON.stringify(version)}, expected it to contain ${expectedVersion}`,
+    );
+    // `hql render --emit after --envelope json -`, a card on stdin and one JSON
+    // object back: how the extension runs a cell.
+    const card = "```hql#eval\n[1, 2] | map(x => x * 2)\n```\n";
+    const answer = execFileSync(
+      binary,
+      ["--vault", dir, "render", "--emit", "after", "--envelope", "json", "-"],
+      { input: card, encoding: "utf8", timeout: 30_000 },
+    );
+    const cell = JSON.parse(answer).cells?.[0];
+    check(
+      cell?.status === "ok" && cell?.markdown === "- 2\n- 4",
+      `running a cell through \`hql render\` answered ${JSON.stringify(cell)}`,
+    );
+    return version;
+  },
+};
 
 async function main() {
   const outIndex = process.argv.indexOf("--out");
@@ -63,7 +93,8 @@ async function main() {
   const expectedSums = parseSums(await readFile(join(out, "SHA256SUMS"), "utf8"));
   const host = hostPlatform();
 
-  console.log(`verifying ${out} against toolchain ${manifest.toolchain} (d2 ${manifest.tools.d2.version})`);
+  const pins = Object.entries(manifest.tools).map(([tool, spec]) => `${tool} ${spec.version}`);
+  console.log(`verifying ${out} against toolchain ${manifest.toolchain} (${pins.join(", ")})`);
 
   for (const platform of manifest.platforms) {
     const windows = platform.startsWith("windows-");
@@ -78,34 +109,50 @@ async function main() {
     check(expectedSums[name] === sha256(body), `${name}: does not match its SHA256SUMS entry`);
 
     const entries = (windows ? readZip(body) : readTarGz(body)).filter((entry) => entry.type !== "5");
-    const binaryPath = windows ? "bin/d2.exe" : "bin/d2";
     const names = entries.map((entry) => entry.name).sort();
     check(
-      JSON.stringify(names) === JSON.stringify([binaryPath, "licenses/d2/LICENSE", "manifest.json"].sort()),
+      JSON.stringify(names) === JSON.stringify(expectedFiles(manifest, platform)),
       `${name}: unexpected contents ${names.join(", ")}`,
     );
 
-    const binary = entries.find((entry) => entry.name === binaryPath);
     const embedded = entries.find((entry) => entry.name === "manifest.json");
-    if (!binary || !embedded) continue;
-
-    check((binary.mode & 0o111) !== 0, `${name}: ${binaryPath} is not executable`);
-
+    if (!embedded) continue;
     const parsed = JSON.parse(embedded.body.toString("utf8"));
     check(parsed.toolchain === manifest.toolchain, `${name}: manifest toolchain ${parsed.toolchain}`);
     check(parsed.platform === platform, `${name}: manifest platform ${parsed.platform}`);
-    check(parsed.tools.d2.version === manifest.tools.d2.version, `${name}: manifest d2 ${parsed.tools.d2.version}`);
-    check(parsed.tools.d2.path === binaryPath, `${name}: manifest path ${parsed.tools.d2.path}`);
+
+    const tools = toolsFor(manifest, platform);
     check(
-      parsed.tools.d2.upstream.sha256 === manifest.tools.d2.assets[platform].sha256,
-      `${name}: manifest records a different upstream digest than toolchain.json`,
+      JSON.stringify(Object.keys(parsed.tools ?? {}).sort()) === JSON.stringify(tools),
+      `${name}: manifest lists ${Object.keys(parsed.tools ?? {}).join(", ")}, expected ${tools.join(", ")}`,
     );
 
+    const ran = [];
+    for (const tool of tools) {
+      const path = binaryPath(tool, platform);
+      const binary = entries.find((entry) => entry.name === path);
+      const recorded = parsed.tools?.[tool];
+      if (!binary || !recorded) continue;
+      const spec = manifest.tools[tool];
+
+      check((binary.mode & 0o111) !== 0, `${name}: ${path} is not executable`);
+      check(recorded.version === spec.version, `${name}: manifest ${tool} ${recorded.version}`);
+      check(recorded.path === path, `${name}: manifest ${tool} path ${recorded.path}`);
+      check(
+        recorded.upstream?.sha256 === spec.assets[platform].sha256,
+        `${name}: manifest records a different upstream ${tool} digest than toolchain.json`,
+      );
+
+      if (platform === host) {
+        const { binary: file, dir } = extract(binary, tool);
+        ran.push(EXERCISE[tool](file, spec.version, dir));
+      }
+    }
+
     if (platform === host) {
-      const version = exerciseBinary(binary, manifest.tools.d2.version);
-      console.log(`  ${name}  ran here: ${version}`);
+      console.log(`  ${name}  ran here: ${ran.join("; ")}`);
     } else {
-      console.log(`  ${name}  ok (not runnable on ${host ?? process.platform})`);
+      console.log(`  ${name}  ok: ${tools.join(", ")} (not runnable on ${host ?? process.platform})`);
     }
   }
 
