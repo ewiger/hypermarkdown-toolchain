@@ -5,6 +5,17 @@ immutable.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-26
+
+### Changed
+
+- **`hql` 0.5.2** (`ewiger/hql` `v0.5.2`), where 0.2.0 carried 0.4.2, in the
+  same three archives. Not a drop-in replacement: `--envelope json` carries a
+  run's diagnostics under `diagnostics`, where it carried `reports`, and
+  `--vault` refuses a directory holding neither `.hmd/` nor `hql.toml`.
+- Verification runs the cell inside a vault with `.hmd/`, as the VS Code
+  extension does, because hql 0.5 no longer accepts a bare directory.
+
 ## [0.2.0] — 2026-10-19
 
 ### Added
