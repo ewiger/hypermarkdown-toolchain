@@ -11,7 +11,7 @@
 // there is one definition of "a good release" rather than a copy in each.
 
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdtempSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -69,11 +69,15 @@ const EXERCISE = {
       `hql --version reported ${JSON.stringify(version)}, expected it to contain ${expectedVersion}`,
     );
     // `hql render --emit after --envelope json -`, a card on stdin and one JSON
-    // object back: how the extension runs a cell.
+    // object back: how the extension runs a cell. Since hql 0.5 `--vault` must
+    // name a real vault, one holding `.hmd/`, as every vault the extension
+    // passes does.
+    const vault = join(dir, "vault");
+    mkdirSync(join(vault, ".hmd"), { recursive: true });
     const card = "```hql#eval\n[1, 2] | map(x => x * 2)\n```\n";
     const answer = execFileSync(
       binary,
-      ["--vault", dir, "render", "--emit", "after", "--envelope", "json", "-"],
+      ["--vault", vault, "render", "--emit", "after", "--envelope", "json", "-"],
       { input: card, encoding: "utf8", timeout: 30_000 },
     );
     const cell = JSON.parse(answer).cells?.[0];
