@@ -5,6 +5,20 @@ immutable.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-13
+
+### Changed
+
+- **`hql` 0.6.0** (`ewiger/hql` `v0.6.0`), where 0.3.0 carried 0.5.2, in the
+  same three archives. The cell protocol the VS Code extension drives,
+  `--vault <dir> render --envelope json`, is unchanged. The breaking changes
+  are in the language: `Unit` is `Step`, a String's `length` is `size`,
+  `net.socket` is `net.tcp`, and a configured id is declared under
+  `[endpoint.<id>]` in `hql.toml`. `hql run`, `check`, `plan` and `boundary`
+  find the vault from the program file's directory.
+- Verification reads the first line of `hql --version`, since hql 0.6 adds a
+  second naming its time-zone database.
+
 ## [0.3.0] — 2026-10-26
 
 ### Changed
