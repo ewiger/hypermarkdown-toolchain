@@ -63,7 +63,11 @@ const EXERCISE = {
     return version;
   },
   hql(binary, expectedVersion, dir) {
-    const version = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
+    // Since hql 0.6 a second line names the time-zone database; the version
+    // is the first.
+    const version = execFileSync(binary, ["--version"], { encoding: "utf8" })
+      .trim()
+      .split("\n")[0];
     check(
       version.includes(expectedVersion),
       `hql --version reported ${JSON.stringify(version)}, expected it to contain ${expectedVersion}`,
