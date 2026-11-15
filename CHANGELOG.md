@@ -5,6 +5,20 @@ immutable.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-11-15
+
+### Changed
+
+- **`hql` 0.7.0** (`ewiger/hql` `v0.7.0`), where 0.4.0 carried 0.6.0, in the
+  same three archives. The cell protocol the VS Code extension drives is
+  `--vault <dir> render --envelope json` as before, but `--vault` now names
+  the vault root, the directory holding `.hmd/`: HQL reads the cards from the
+  namespace root its `wiki` setting names, and refuses a directory inside a
+  vault that holds no `.hmd/`. A vault that keeps its cards at its root states
+  `wiki = "."`. References resolve through HyperMarkdown's own resolver, a
+  project is configured by `.hql/config.toml` in place of `hql.toml`, and
+  `--project` replaces `--workspace`.
+
 ## [0.4.0] — 2026-11-13
 
 ### Changed
