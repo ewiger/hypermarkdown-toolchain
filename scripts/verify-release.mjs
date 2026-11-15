@@ -75,9 +75,12 @@ const EXERCISE = {
     // `hql render --emit after --envelope json -`, a card on stdin and one JSON
     // object back: how the extension runs a cell. Since hql 0.5 `--vault` must
     // name a real vault, one holding `.hmd/`, as every vault the extension
-    // passes does.
+    // passes does; since hql 0.7 it reads the cards from the vault's namespace
+    // root, `doc/wiki` where `.hmd/config.toml` names none, so the vault has
+    // HyperMarkdown's default layout.
     const vault = join(dir, "vault");
     mkdirSync(join(vault, ".hmd"), { recursive: true });
+    mkdirSync(join(vault, "doc", "wiki"), { recursive: true });
     const card = "```hql#eval\n[1, 2] | map(x => x * 2)\n```\n";
     const answer = execFileSync(
       binary,
