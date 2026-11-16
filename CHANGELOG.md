@@ -5,6 +5,15 @@ immutable.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-11-16
+
+### Changed
+
+- **`hql` 0.7.1** (`ewiger/hql` `v0.7.1`), where 0.5.0 carried 0.7.0, in the
+  same three archives. `import m` binds the module's name only, so a cell that
+  called a non-prelude module's function bare after `import m` now writes
+  `m.f(…)` or `from m import f`. The cell protocol is unchanged.
+
 ## [0.5.0] — 2026-11-15
 
 ### Changed
