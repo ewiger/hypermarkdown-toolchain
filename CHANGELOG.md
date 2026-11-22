@@ -5,6 +5,17 @@ immutable.
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-11-22
+
+### Added
+
+- **`hql` on Windows.** `hql` 0.7.2 (`ewiger/hql` `v0.7.2`), where 0.5.1
+  carried 0.7.1, publishes `x86_64-pc-windows-msvc`, so the windows-x86_64
+  archive carries `bin/hql.exe` beside `bin/d2.exe`. The Linux x86_64 and both
+  macOS archives carry 0.7.2 as before; Linux ARM64 still carries `d2` only.
+  A path an HQL program reads is written with `/` on every host, a card's
+  path among them. The cell protocol is unchanged.
+
 ## [0.5.1] — 2026-11-16
 
 ### Changed
