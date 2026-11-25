@@ -1,5 +1,5 @@
 {
-  "toolchain": "0.5.2",
+  "toolchain": "0.5.3",
   "platforms": [
     "linux-x86_64",
     "linux-arm64",
@@ -40,29 +40,29 @@
       "license": "MPL-2.0"
     },
     "hql": {
-      "version": "0.7.2",
+      "version": "0.8.0",
       "upstream": {
         "repo": "ewiger/hql",
-        "tag": "v0.7.2"
+        "tag": "v0.8.0"
       },
       "checksums": "sidecar",
       "license": "MIT",
       "assets": {
         "linux-x86_64": {
-          "name": "hql-v0.7.2-x86_64-unknown-linux-gnu.tar.gz",
-          "sha256": "44f9c3160a8f110c5af03d14d3a0c2a2c77f9d288f53a286214afbb48c32a87b"
+          "name": "hql-v0.8.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "dd3a004dedd0ebd9807bca14910e5201bd63e8032866308758d60cfa59fe77a3"
         },
         "macos-x86_64": {
-          "name": "hql-v0.7.2-x86_64-apple-darwin.tar.gz",
-          "sha256": "33d9149ded36e9d06715d0d89a23330319b4545fad4ada24a02e5742db1c4f2a"
+          "name": "hql-v0.8.0-x86_64-apple-darwin.tar.gz",
+          "sha256": "983c653d26b625a0bc380d082f5c20bff94d10aac93152c36526d2469c420dec"
         },
         "macos-arm64": {
-          "name": "hql-v0.7.2-aarch64-apple-darwin.tar.gz",
-          "sha256": "2b3003a811e061e61a890b8e3efab7985aebe3485e3a50f09318ac5cc5d7ef5f"
+          "name": "hql-v0.8.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "d258d8f8d1ef3b8de009d7bccc5b66f1ab94f9612b5b625ea8475de20eaab97c"
         },
         "windows-x86_64": {
-          "name": "hql-v0.7.2-x86_64-pc-windows-msvc.tar.gz",
-          "sha256": "656aa6d722c702a218f5948adc6358006d7ccbd076eb7e011ad35c71dc5c7640"
+          "name": "hql-v0.8.0-x86_64-pc-windows-msvc.tar.gz",
+          "sha256": "5064a257e475fe92481e19a785146253362c92d239d3a5021288b446244d4d8f"
         }
       }
     }

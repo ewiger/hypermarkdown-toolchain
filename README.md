@@ -44,7 +44,7 @@ manifest.json          # toolchain version, platform, and each tool's version an
 ```
 
 A tool is in an archive exactly when `toolchain.json` pins an asset for that
-platform. `d2` is in all five. HQL 0.7.2 publishes Linux x86_64, both macOS
+platform. `d2` is in all five. HQL 0.8.0 publishes Linux x86_64, both macOS
 targets and Windows x86_64, so only the Linux ARM64 archive carries `d2` alone;
 `manifest.json` lists what an archive holds.
 

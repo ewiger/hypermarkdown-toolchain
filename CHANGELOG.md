@@ -5,6 +5,19 @@ immutable.
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-11-25
+
+### Changed
+
+- **`hql` 0.8.0** (`ewiger/hql` `v0.8.0`), where 0.5.2 carried 0.7.2, on the
+  same four platforms; Linux ARM64 still carries `d2` only. 0.8.0 reads a
+  vault's namespace root from `location_path` in `.hmd/config.toml`, which
+  defaults to the vault itself, as HyperMarkDown 0.1 specifies. 0.7.2 looked
+  for `doc/wiki` and asked for the retired `wiki` key, so a cell failed in a
+  vault that is only an empty `.hmd/`, which is the vault the editor's
+  Initialize Vault creates. The cell protocol is unchanged.
+- The release check runs its cell in a vault that is only an empty `.hmd/`.
+
 ## [0.5.2] — 2026-11-22
 
 ### Added
