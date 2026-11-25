@@ -3,7 +3,7 @@
 //
 //   node scripts/build-release.mjs [--platform <id>]... [--out dist]
 //
-// Downloads the pinned upstream assets of every tool — d2 and hql — verifies
+// Downloads the pinned upstream assets of every tool — d2, hql and hmd-lsp — verifies
 // them twice over, and repacks them into one archive per platform with a
 // stable internal layout. Output is
 // byte-reproducible: given the same toolchain.json, two runs produce identical
@@ -26,7 +26,7 @@ import {
 } from "./lib/common.mjs";
 import { readTarGz, writeTarGz } from "./lib/tar.mjs";
 import { binaryPath, licensePath, toolsFor } from "./lib/tools.mjs";
-import { writeZip } from "./lib/zip.mjs";
+import { readZip, writeZip } from "./lib/zip.mjs";
 
 const ARCHIVE_MODE = 0o755;
 const LICENSE_MODE = 0o644;
@@ -45,8 +45,21 @@ function parseArgs(argv) {
 }
 
 /**
- * Find a tool's single executable in an extracted upstream tarball. d2 nests it
- * at `d2-v<version>/bin/d2` and hql at `hql-v<version>-<target>/hql`; searching
+ * The entries of an upstream archive, whichever format upstream chose. d2 and
+ * hql publish a tarball for every platform; hmd-lsp publishes a zip for
+ * Windows. A zip entry carries no type, so one is given here: a name ending in
+ * `/` is a directory and everything else is a file, which is all the search
+ * below needs to know.
+ */
+function readUpstream(name, body) {
+  if (!name.endsWith(".zip")) return readTarGz(body);
+  return readZip(body).map((entry) => ({ ...entry, type: entry.name.endsWith("/") ? "5" : "0" }));
+}
+
+/**
+ * Find a tool's single executable in an extracted upstream archive. d2 nests it
+ * at `d2-v<version>/bin/d2`, hql at `hql-v<version>-<target>/hql`, and hmd-lsp
+ * at `hmd-lsp-v<version>-<target>/hmd-lsp`; searching
  * by name means a layout change surfaces as a clear failure here rather than as
  * an archive that is missing its binary.
  */
@@ -67,8 +80,9 @@ function findExecutable(entries, tool) {
 }
 
 function findLicense(entries) {
-  // d2 is MPL-2.0 and hql is MIT, not this repo's licence, so redistributing a
-  // binary means shipping upstream's licence text alongside it.
+  // d2 is MPL-2.0, and hql and hmd-lsp are MIT under their own copyright
+  // lines, so redistributing a binary means shipping upstream's licence text
+  // alongside it.
   const match = entries.find((entry) => /(^|\/)LICENSE(\.[A-Za-z]+)?$/.test(entry.name) && entry.type === "0");
   if (!match) fail("no LICENSE file found in the upstream archive");
   return match;
@@ -88,7 +102,7 @@ async function toolFiles(manifest, tool, platform) {
     fail(`${asset.name}: pinned sha256 ${asset.sha256}, downloaded ${actual}`);
   }
 
-  const entries = readTarGz(upstreamArchive);
+  const entries = readUpstream(asset.name, upstreamArchive);
   const path = binaryPath(tool, platform);
   return {
     files: [

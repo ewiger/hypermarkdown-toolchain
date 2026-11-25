@@ -102,9 +102,12 @@ export function writeZip(files) {
 }
 
 /**
- * Read a zip written by writeZip. Enough of the format to let the verifier
- * inspect the Windows artifact the same way it inspects the tarballs — it
- * walks the central directory rather than scanning for local headers.
+ * Read a zip. Enough of the format to let the verifier inspect the Windows
+ * artifact the same way it inspects the tarballs, and to let the build read an
+ * upstream asset published as a zip. It walks the central directory rather
+ * than scanning for local headers, so sizes are right even for an archiver
+ * that writes them after the data. Stored and deflated entries only, and no
+ * zip64: every archive read here is a few megabytes.
  *
  * @param {Buffer} buf
  * @returns {{name: string, mode: number, body: Buffer}[]}

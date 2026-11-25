@@ -6,8 +6,8 @@
 // Checks every archive in the output directory: its digest matches SHA256SUMS,
 // it contains exactly the files the layout promises for its platform, its
 // embedded manifest agrees with toolchain.json, and — for the archive matching
-// the host — every extracted binary actually runs: d2 renders, and hql runs a
-// cell. Both workflows call this, so
+// the host — every extracted binary actually runs: d2 renders, hql runs a
+// cell, and hmd-lsp answers a client. Both workflows call this, so
 // there is one definition of "a good release" rather than a copy in each.
 
 import { execFileSync } from "node:child_process";
@@ -15,6 +15,7 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { ROOT, fail, parseSums, readManifest, sha256 } from "./lib/common.mjs";
 import { readTarGz } from "./lib/tar.mjs";
@@ -93,6 +94,74 @@ const EXERCISE = {
     );
     return version;
   },
+};
+
+/** One Language Server Protocol message, framed as the protocol frames it. */
+function frame(message) {
+  const body = JSON.stringify({ jsonrpc: "2.0", ...message });
+  return `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+}
+
+/** The messages in a server's output, in the order it wrote them. */
+function unframe(output) {
+  const messages = [];
+  let rest = Buffer.from(output, "utf8");
+  for (;;) {
+    const head = rest.indexOf("\r\n\r\n");
+    if (head === -1) return messages;
+    const length = /Content-Length: (\d+)/i.exec(rest.subarray(0, head).toString("utf8"));
+    if (length === null) return messages;
+    const start = head + 4;
+    const end = start + Number(length[1]);
+    messages.push(JSON.parse(rest.subarray(start, end).toString("utf8")));
+    rest = rest.subarray(end);
+  }
+}
+
+EXERCISE["hmd-lsp"] = (binary, expectedVersion, dir) => {
+  const version = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
+  check(
+    version === `hmd-lsp ${expectedVersion}`,
+    `hmd-lsp --version reported ${JSON.stringify(version)}, expected "hmd-lsp ${expectedVersion}"`,
+  );
+  // One whole session over stdin and stdout, as the extension starts it:
+  // `--stdio`, diagnostics off, a card opened, its tokens asked for, and a
+  // clean stop. The card links to a card that exists and to one that does
+  // not, so the answer shows the server resolved against the vault on disk.
+  const vault = join(dir, "lsp-vault");
+  mkdirSync(join(vault, ".hmd"), { recursive: true });
+  writeFileSync(join(vault, "tokens.hmd"), "# Tokens\n");
+  const uri = pathToFileURL(join(vault, "login.hmd")).href;
+  const session = [
+    { id: 1, method: "initialize", params: { capabilities: {}, initializationOptions: { diagnostics: false } } },
+    { method: "initialized", params: {} },
+    {
+      method: "textDocument/didOpen",
+      params: { textDocument: { uri, languageId: "hmd", version: 1, text: "[[tokens]] [[nowhere]]\n" } },
+    },
+    { id: 2, method: "textDocument/semanticTokens/full", params: { textDocument: { uri } } },
+    { id: 3, method: "shutdown", params: null },
+    { method: "exit", params: null },
+  ];
+  const answers = unframe(
+    execFileSync(binary, ["--stdio"], { input: session.map(frame).join(""), encoding: "utf8", timeout: 30_000 }),
+  );
+  const answer = (id) => answers.find((message) => message.id === id)?.result;
+  check(
+    answer(1)?.serverInfo?.name === "hmd-lsp" && answer(1)?.serverInfo?.version === expectedVersion,
+    `hmd-lsp introduced itself as ${JSON.stringify(answer(1)?.serverInfo)}`,
+  );
+  // Two tokens: `tokens` resolves, and `nowhere` carries the first modifier,
+  // which the server's legend names `unresolved`.
+  check(
+    JSON.stringify(answer(2)?.data) === JSON.stringify([0, 2, 6, 0, 0, 0, 11, 7, 0, 1]),
+    `hmd-lsp answered semantic tokens ${JSON.stringify(answer(2)?.data)}`,
+  );
+  check(
+    answer(1)?.capabilities?.semanticTokensProvider?.legend?.tokenModifiers?.[0] === "unresolved",
+    "hmd-lsp's first token modifier is not `unresolved`",
+  );
+  return version;
 };
 
 async function main() {

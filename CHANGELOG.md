@@ -5,6 +5,22 @@ immutable.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-25
+
+### Added
+
+- **`hmd-lsp` 0.1.0**, the HyperMarkDown language server
+  (`ewiger/hypermarkdown` `lsp-v0.1.0`), in all five archives as `bin/hmd-lsp`,
+  or `bin/hmd-lsp.exe` on Windows, with its licence at
+  `licenses/hmd-lsp/LICENSE`. It is one native program that speaks the Language
+  Server Protocol over standard input and output. `d2` 0.9.0 and `hql` 0.8.0
+  are unchanged.
+- The build reads an upstream asset published as a zip, which is how `hmd-lsp`
+  publishes its Windows program. `d2` and `hql` publish a tarball for every
+  platform.
+- The release check starts `hmd-lsp` on each platform and runs one session: it
+  opens a card in a vault, asks for its semantic tokens, and stops the server.
+
 ## [0.5.3] — 2026-11-25
 
 ### Changed
