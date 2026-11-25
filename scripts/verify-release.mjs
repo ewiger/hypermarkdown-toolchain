@@ -7,8 +7,9 @@
 // it contains exactly the files the layout promises for its platform, its
 // embedded manifest agrees with toolchain.json, and — for the archive matching
 // the host — every extracted binary actually runs: d2 renders, hql runs a
-// cell, and hmd-lsp answers a client. Both workflows call this, so
-// there is one definition of "a good release" rather than a copy in each.
+// cell, hmd-lsp answers a client, and merman-cli draws a Mermaid diagram. Both
+// workflows call this, so there is one definition of "a good release" rather
+// than a copy in each.
 
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -161,6 +162,42 @@ EXERCISE["hmd-lsp"] = (binary, expectedVersion, dir) => {
     answer(1)?.capabilities?.semanticTokensProvider?.legend?.tokenModifiers?.[0] === "unresolved",
     "hmd-lsp's first token modifier is not `unresolved`",
   );
+  return version;
+};
+
+EXERCISE["merman-cli"] = (binary, expectedVersion) => {
+  const version = execFileSync(binary, ["--version"], { encoding: "utf8" }).trim();
+  check(
+    version === `merman-cli ${expectedVersion}`,
+    `merman-cli --version reported ${JSON.stringify(version)}, expected "merman-cli ${expectedVersion}"`,
+  );
+  // The arguments HyperMarkDown draws a Mermaid diagram with: the source on
+  // stdin, SVG on stdout, labels as SVG text, the resource policy for input
+  // nobody vetted, and the renderer's own deadline.
+  const args = [
+    "render",
+    "-",
+    "--format",
+    "svg",
+    "--svg-pipeline",
+    "resvg-safe",
+    "--resource-profile",
+    "constrained",
+    "--operation-timeout-ms",
+    "2000",
+    "--quiet",
+  ];
+  const draw = (source) => execFileSync(binary, args, { input: source, encoding: "utf8", timeout: 30_000 });
+  const source = "flowchart LR\n  A[Card on disk] -->|parse| B{Has cells?}\n";
+  const svg = draw(source);
+  check(svg.startsWith("<svg"), "drawing a flowchart through `merman-cli render -` produced no SVG");
+  // The drawing is shown as an image, which does not show HTML inside
+  // `foreignObject`: a label drawn that way arrives as an empty box.
+  check(!svg.includes("<foreignObject"), "merman-cli drew a label as HTML in a foreignObject");
+  check(/<text[^>]*>Card on disk<\/text>/.test(svg), "merman-cli did not draw the node label as SVG text");
+  check(!svg.includes("<script"), "merman-cli wrote a script element into the SVG");
+  // A site build and an editor must agree on a drawing, byte for byte.
+  check(draw(source) === svg, "merman-cli drew the same source differently the second time");
   return version;
 };
 
