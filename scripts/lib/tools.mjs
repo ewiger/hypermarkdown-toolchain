@@ -2,8 +2,9 @@
 // verifier so the two cannot disagree about a layout.
 //
 // A tool appears in a platform's archive exactly when toolchain.json pins an
-// asset for that platform. d2 publishes all five; hql publishes four, and the
-// Linux ARM64 archive simply carries no hql — a consumer falls back to PATH there.
+// asset for that platform. d2 and hmd-lsp publish all five; hql publishes four,
+// and the Linux ARM64 archive simply carries no hql — a consumer falls back to
+// PATH there.
 
 /** The tools pinned for a platform, in a stable order. */
 export function toolsFor(manifest, platform) {

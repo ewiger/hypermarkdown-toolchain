@@ -2,12 +2,15 @@
 
 Pinned native binaries for [HyperMarkDown](https://github.com/ewiger/hypermarkdown).
 
-HyperMarkDown needs two native binaries:
+HyperMarkDown needs three native binaries:
 
 - [`d2`](https://github.com/d2lang/d2) to render diagrams — in CI, in the
   documentation build, and inside the VS Code extension;
 - [`hql`](https://github.com/ewiger/hql) to run HQL cells — inside the VS Code
-  extension.
+  extension;
+- [`hmd-lsp`](https://github.com/ewiger/hypermarkdown/tree/main/tools/hmd-lsp),
+  the HyperMarkDown language server, to colour links by whether they resolve
+  and to answer hover and Go to Definition — inside the VS Code extension.
 
 Before this repository existed `d2` was acquired separately in each place from a
 moving `:latest` Docker tag, so two runs could render the same diagram
@@ -17,8 +20,10 @@ reproducible archive per platform, one checksum file.
 
 It packages only native executables released elsewhere. HQL is its own project
 with its own releases, so to HyperMarkDown it is a pinned binary like `d2`. The
-`hmd` CLI, the HMD LSP and the VS Code extension are HyperMarkDown components and
-live in the main repository.
+language server is built and released by the main repository, on its own
+`lsp-v` tags, and is pinned here from that release like the other two. The
+`hmd` CLI and the VS Code extension are HyperMarkDown components that live in
+the main repository and are not packaged here.
 
 ## What a release contains
 
@@ -37,14 +42,16 @@ all of them:
 
 ```text
 bin/d2                 # bin/d2.exe on Windows
+bin/hmd-lsp            # bin/hmd-lsp.exe on Windows
 bin/hql                # where HQL publishes this platform
-licenses/d2/LICENSE    # d2 is MPL-2.0; each binary travels with its licence
-licenses/hql/LICENSE   # hql is MIT
+licenses/d2/LICENSE         # d2 is MPL-2.0; each binary travels with its licence
+licenses/hmd-lsp/LICENSE    # hmd-lsp is MIT
+licenses/hql/LICENSE        # hql is MIT
 manifest.json          # toolchain version, platform, and each tool's version and upstream pin
 ```
 
 A tool is in an archive exactly when `toolchain.json` pins an asset for that
-platform. `d2` is in all five. HQL 0.8.0 publishes Linux x86_64, both macOS
+platform. `d2` and `hmd-lsp` are in all five. HQL 0.8.0 publishes Linux x86_64, both macOS
 targets and Windows x86_64, so only the Linux ARM64 archive carries `d2` alone;
 `manifest.json` lists what an archive holds.
 
@@ -58,10 +65,10 @@ happens to have. CI rebuilds and compares on every push.
 ## Consuming a release
 
 Download the archive for your platform, verify it against `SHA256SUMS`, unpack
-it, and use `bin/d2` and `bin/hql`. Nothing here is meant to be consumed as source: HyperMarkDown
+it, and use `bin/d2`, `bin/hql` and `bin/hmd-lsp`. Nothing here is meant to be consumed as source: HyperMarkDown
 pins a toolchain *version* and fetches the published artifact over HTTPS.
 
-The version lines are independent. Bumping d2 or hql happens here;
+The version lines are independent. Bumping d2, hql or hmd-lsp happens here;
 HyperMarkDown bumps only the toolchain version it pins, and a published
 toolchain release is immutable.
 
@@ -80,7 +87,7 @@ node scripts/bump-d2.mjs v0.10.0      # repin d2 to a new upstream release
 
 `build-release.mjs` verifies the upstream assets twice: once against the digests
 pinned in `toolchain.json`, and once against the digests upstream publishes for
-that tag — a `SHA256SUMS` for d2, a `.sha256` beside each asset for hql. The first catches a moved tag; the second catches a pin that was
+that tag — a `SHA256SUMS` for d2 and for hmd-lsp, a `.sha256` beside each asset for hql. The first catches a moved tag; the second catches a pin that was
 written wrong to begin with.
 
 `verify-release.mjs` is the single definition of a good release — both workflows
@@ -88,13 +95,16 @@ call it rather than each describing the checks themselves. It confirms every
 digest, the exact file list, the executable bit, and that the embedded manifest
 agrees with `toolchain.json`; and for the archive matching the host it extracts
 each binary and runs it the way its consumer does — `d2 - -` renders `a -> b`,
-and `hql render --emit after --envelope json -` runs a cell.
+`hql render --emit after --envelope json -` runs a cell, and `hmd-lsp --stdio`
+answers one session of the Language Server Protocol.
 
 ## Releasing
 
 1. `node scripts/bump-d2.mjs <tag>` if d2 is moving. To move hql, edit its
    `version`, `tag` and the three asset digests in `toolchain.json`; the build
-   checks them against HQL's published `.sha256` files.
+   checks them against HQL's published `.sha256` files. To move hmd-lsp, edit
+   its `version`, `tag`, and the five asset names and digests, from the
+   `SHA256SUMS` of its release; the build checks them against that file.
 2. Bump `toolchain` in `toolchain.json` and add a `CHANGELOG.md` entry.
 3. Tag `v<version>`. The release workflow rejects a tag that disagrees with
    `toolchain.json`, builds, verifies on all five platforms, and publishes.
@@ -103,4 +113,6 @@ and `hql render --emit after --envelope json -` runs a cell.
 
 This repository is MIT ([LICENSE](LICENSE)). The `d2` binary it redistributes is
 MPL-2.0 and ships with upstream's licence text at `licenses/d2/LICENSE`; the
-`hql` binary is MIT and ships with its licence at `licenses/hql/LICENSE`.
+`hql` binary is MIT and ships with its licence at `licenses/hql/LICENSE`; the
+`hmd-lsp` binary is MIT and ships with its licence at
+`licenses/hmd-lsp/LICENSE`.

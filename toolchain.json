@@ -1,5 +1,5 @@
 {
-  "toolchain": "0.5.3",
+  "toolchain": "0.6.0",
   "platforms": [
     "linux-x86_64",
     "linux-arm64",
@@ -63,6 +63,37 @@
         "windows-x86_64": {
           "name": "hql-v0.8.0-x86_64-pc-windows-msvc.tar.gz",
           "sha256": "5064a257e475fe92481e19a785146253362c92d239d3a5021288b446244d4d8f"
+        }
+      }
+    },
+    "hmd-lsp": {
+      "version": "0.1.0",
+      "upstream": {
+        "repo": "ewiger/hypermarkdown",
+        "tag": "lsp-v0.1.0"
+      },
+      "checksums": "SHA256SUMS",
+      "license": "MIT",
+      "assets": {
+        "linux-x86_64": {
+          "name": "hmd-lsp-v0.1.0-x86_64-unknown-linux-musl.tar.gz",
+          "sha256": "99791d0774cbd0d52da2243011313b3fcd29cd577dcfcf6b0db16230236802ee"
+        },
+        "linux-arm64": {
+          "name": "hmd-lsp-v0.1.0-aarch64-unknown-linux-musl.tar.gz",
+          "sha256": "a789727661fcb23c353c60f8b0ad96831b94779262b6dbacc39cf8f9cccd899a"
+        },
+        "macos-x86_64": {
+          "name": "hmd-lsp-v0.1.0-x86_64-apple-darwin.tar.gz",
+          "sha256": "9d7b2fb7c1f5bcd8a5b74be71b51e7d825f92b378241a96cd4eed58b58e700c0"
+        },
+        "macos-arm64": {
+          "name": "hmd-lsp-v0.1.0-aarch64-apple-darwin.tar.gz",
+          "sha256": "f06b73071d5543d85f1f65301d00c0345b4c76579c3d25b25eb2158b882c9f57"
+        },
+        "windows-x86_64": {
+          "name": "hmd-lsp-v0.1.0-x86_64-pc-windows-msvc.zip",
+          "sha256": "162b800f390b8d49bde4c994d1df13df8622c0df036ac8e0aeeab4f79be9795c"
         }
       }
     }
