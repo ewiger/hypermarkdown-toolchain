@@ -3,9 +3,9 @@
 //
 //   node scripts/build-release.mjs [--platform <id>]... [--out dist]
 //
-// Downloads the pinned upstream assets of every tool — d2, hql and hmd-lsp — verifies
-// them twice over, and repacks them into one archive per platform with a
-// stable internal layout. Output is
+// Downloads the pinned upstream assets of every tool — d2, hql, hmd-lsp and
+// merman-cli — verifies them twice over, and repacks them into one archive per
+// platform with a stable internal layout. Output is
 // byte-reproducible: given the same toolchain.json, two runs produce identical
 // archives and an identical SHA256SUMS.
 
@@ -24,8 +24,8 @@ import {
   releaseAssetUrl,
   sha256,
 } from "./lib/common.mjs";
-import { readTarGz, writeTarGz } from "./lib/tar.mjs";
-import { binaryPath, licensePath, toolsFor } from "./lib/tools.mjs";
+import { readTarGz, readTarXz, writeTarGz } from "./lib/tar.mjs";
+import { binaryPath, licensePath, noticesPath, toolsFor } from "./lib/tools.mjs";
 import { readZip, writeZip } from "./lib/zip.mjs";
 
 const ARCHIVE_MODE = 0o755;
@@ -46,12 +46,14 @@ function parseArgs(argv) {
 
 /**
  * The entries of an upstream archive, whichever format upstream chose. d2 and
- * hql publish a tarball for every platform; hmd-lsp publishes a zip for
- * Windows. A zip entry carries no type, so one is given here: a name ending in
- * `/` is a directory and everything else is a file, which is all the search
- * below needs to know.
+ * hql publish a gzipped tarball for every platform; hmd-lsp and merman-cli
+ * publish a zip for Windows; merman-cli publishes an xz tarball for the rest.
+ * A zip entry carries no type, so one is given here: a name ending in `/` is a
+ * directory and everything else is a file, which is all the search below needs
+ * to know.
  */
 function readUpstream(name, body) {
+  if (name.endsWith(".tar.xz")) return readTarXz(body);
   if (!name.endsWith(".zip")) return readTarGz(body);
   return readZip(body).map((entry) => ({ ...entry, type: entry.name.endsWith("/") ? "5" : "0" }));
 }
@@ -79,10 +81,25 @@ function findExecutable(entries, tool) {
   return matches[0];
 }
 
-function findLicense(entries) {
+/**
+ * One file of an upstream archive by its name, wherever the archive nests it.
+ * The shallowest match wins: merman-cli's archive holds a `LICENSE` for each
+ * dependency below `THIRD_PARTY_LICENSES/`, and the tool's own is at the top.
+ */
+function findNamed(entries, fileName, what) {
+  const matches = entries
+    .filter((entry) => entry.type === "0" && entry.name.split("/").pop() === fileName)
+    .sort((a, b) => a.name.split("/").length - b.name.split("/").length);
+  if (matches.length === 0) fail(`no ${what} \`${fileName}\` found in the upstream archive`);
+  return matches[0];
+}
+
+function findLicense(entries, spec) {
   // d2 is MPL-2.0, and hql and hmd-lsp are MIT under their own copyright
   // lines, so redistributing a binary means shipping upstream's licence text
-  // alongside it.
+  // alongside it. merman-cli is offered under MIT or Apache-2.0 and names each
+  // text in its own file, so its pin says which one travels: `licenseFile`.
+  if (spec.licenseFile !== undefined) return findNamed(entries, spec.licenseFile, "licence file");
   const match = entries.find((entry) => /(^|\/)LICENSE(\.[A-Za-z]+)?$/.test(entry.name) && entry.type === "0");
   if (!match) fail("no LICENSE file found in the upstream archive");
   return match;
@@ -104,11 +121,19 @@ async function toolFiles(manifest, tool, platform) {
 
   const entries = readUpstream(asset.name, upstreamArchive);
   const path = binaryPath(tool, platform);
+  const files = [
+    { name: path, mode: ARCHIVE_MODE, body: findExecutable(entries, tool).body },
+    { name: licensePath(tool), mode: LICENSE_MODE, body: findLicense(entries, spec).body },
+  ];
+  if (spec.notices !== undefined) {
+    files.push({
+      name: noticesPath(tool),
+      mode: LICENSE_MODE,
+      body: findNamed(entries, spec.notices, "notices file").body,
+    });
+  }
   return {
-    files: [
-      { name: path, mode: ARCHIVE_MODE, body: findExecutable(entries, tool).body },
-      { name: licensePath(tool), mode: LICENSE_MODE, body: findLicense(entries).body },
-    ],
+    files,
     entry: {
       version: spec.version,
       path,

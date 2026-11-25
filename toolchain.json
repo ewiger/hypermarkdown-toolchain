@@ -1,5 +1,5 @@
 {
-  "toolchain": "0.6.0",
+  "toolchain": "0.7.0",
   "platforms": [
     "linux-x86_64",
     "linux-arm64",
@@ -94,6 +94,39 @@
         "windows-x86_64": {
           "name": "hmd-lsp-v0.1.0-x86_64-pc-windows-msvc.zip",
           "sha256": "162b800f390b8d49bde4c994d1df13df8622c0df036ac8e0aeeab4f79be9795c"
+        }
+      }
+    },
+    "merman-cli": {
+      "version": "0.11.0",
+      "upstream": {
+        "repo": "latias94/merman",
+        "tag": "v0.11.0"
+      },
+      "checksums": "sidecar",
+      "license": "MIT OR Apache-2.0",
+      "licenseFile": "LICENSE-MIT",
+      "notices": "THIRD_PARTY_NOTICES.md",
+      "assets": {
+        "linux-x86_64": {
+          "name": "merman-cli-x86_64-unknown-linux-gnu.tar.xz",
+          "sha256": "cb51eae6818fb1e6f14ef469ea0b2a67b560c345bf3065513d24f640fa3334b2"
+        },
+        "linux-arm64": {
+          "name": "merman-cli-aarch64-unknown-linux-gnu.tar.xz",
+          "sha256": "5bdbdedd91e8aafd4127ea996bccb5d25052e8a49098d8fca903e00f1d60781f"
+        },
+        "macos-x86_64": {
+          "name": "merman-cli-x86_64-apple-darwin.tar.xz",
+          "sha256": "727519471b409266d76d24fb985b57e31bedebece3ca2185615c212f999d5bcd"
+        },
+        "macos-arm64": {
+          "name": "merman-cli-aarch64-apple-darwin.tar.xz",
+          "sha256": "fb22df8fd8f39431bd217d80d42ad73c5e95190609ecd0a80604b11b195f1701"
+        },
+        "windows-x86_64": {
+          "name": "merman-cli-x86_64-pc-windows-msvc.zip",
+          "sha256": "5c842754a5df3d55363fa94e7b976e238f88e821a18d27039e453bc0612a9f64"
         }
       }
     }

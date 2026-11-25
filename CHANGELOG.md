@@ -5,6 +5,35 @@ immutable.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-11-25
+
+### Added
+
+- **`merman-cli` 0.11.0**, a native Mermaid renderer that needs no browser
+  (`latias94/merman` `v0.11.0`), in all five archives as `bin/merman-cli`, or
+  `bin/merman-cli.exe` on Windows. HyperMarkDown draws a `mermaid#show` diagram
+  cell with it, the way it draws a `d2#show` cell with `d2`. It is offered
+  under MIT or Apache-2.0: the MIT text is at `licenses/merman-cli/LICENSE`,
+  and the notices of the libraries it links are at
+  `licenses/merman-cli/THIRD_PARTY_NOTICES.md`. `d2` 0.9.0, `hql` 0.8.0 and
+  `hmd-lsp` 0.1.0 are unchanged.
+- The build reads an upstream asset published as `.tar.xz`, which is how
+  `merman-cli` publishes its Linux and macOS programs. It runs the system's
+  `xz` for that, after the asset's digest is checked.
+- A pin may name its licence file with `licenseFile`, for a tool whose archive
+  has one file for each licence it is offered under, and a `notices` file that
+  travels with the binary.
+- The release check starts `merman-cli` on each platform with the arguments
+  HyperMarkDown uses. It draws a flowchart, checks that the labels are SVG
+  text and that no `foreignObject` or `script` element is written, and draws
+  it again to the same bytes.
+
+### Changed
+
+- An archive is between 43 MiB and 55 MiB, where a 0.6.0 archive was between
+  17 MiB and 28 MiB. `merman-cli` is the difference.
+- The Linux builds of `merman-cli` need glibc 2.35 or later.
+
 ## [0.6.0] — 2026-11-25
 
 ### Added

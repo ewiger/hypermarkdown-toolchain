@@ -6,6 +6,7 @@
 // everywhere, and it lets the writer state plainly that every field except the
 // name, size and mode is a constant.
 
+import { spawnSync } from "node:child_process";
 import { gzipSync, gunzipSync } from "node:zlib";
 
 const BLOCK = 512;
@@ -41,7 +42,41 @@ function readOctal(block, offset, length) {
  * @returns {{name: string, mode: number, type: string, body: Buffer}[]}
  */
 export function readTarGz(gzipped) {
-  const buf = gunzipSync(gzipped);
+  return readTar(gunzipSync(gzipped));
+}
+
+/**
+ * Parse an xz-compressed tar into entries.
+ *
+ * Node has no xz decoder, so this one step runs the system's `xz`. It is the
+ * only program the build starts, and it runs after the compressed bytes were
+ * checked against their pinned digest, so what it is given is known. It only
+ * reads upstream: every archive this repository writes is still written here,
+ * which is what keeps a release byte-reproducible.
+ *
+ * @param {Buffer} compressed
+ */
+export function readTarXz(compressed) {
+  const done = spawnSync("xz", ["--decompress", "--stdout"], {
+    input: compressed,
+    maxBuffer: 1024 * 1024 * 1024,
+  });
+  if (done.error) {
+    throw new Error(`cannot run \`xz\` to read an upstream .tar.xz: ${done.error.message}`);
+  }
+  if (done.status !== 0) {
+    throw new Error(`\`xz\` failed on an upstream .tar.xz: ${done.stderr.toString("utf8").trim()}`);
+  }
+  return readTar(done.stdout);
+}
+
+/**
+ * Parse an uncompressed tar into entries.
+ *
+ * @param {Buffer} buf
+ * @returns {{name: string, mode: number, type: string, body: Buffer}[]}
+ */
+export function readTar(buf) {
   const entries = [];
   let offset = 0;
   let pendingName = null;
